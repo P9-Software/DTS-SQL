@@ -111,6 +111,7 @@ def get_number_of_columns(db_uri: str, given_tables: list[str]) -> list[int]:
     conn.close()
     return number_of_columns
 
+
 def get_all_column_names(db_uri: str, given_tables: list[str]) -> list[list[str]]:
     conn = sqlite3.connect(db_uri)
     cursor = conn.cursor()
@@ -127,6 +128,7 @@ def get_all_column_names(db_uri: str, given_tables: list[str]) -> list[list[str]
     conn.close()
     return column_names
 
+
 def get_all_primary_keys(db_uri: str, given_tables: list[str]) -> list[list[str]]:
     conn = sqlite3.connect(db_uri)
     cursor = conn.cursor()
@@ -138,7 +140,8 @@ def get_all_primary_keys(db_uri: str, given_tables: list[str]) -> list[list[str]
             if table_name[0] == given_table:
                 cursor.execute(f"PRAGMA table_info({table_name[0]});")
                 columns = cursor.fetchall()
-                primary_keys.append([column[1] for column in columns if column[5] == 1])
+                primary_keys.append([column[1]
+                                    for column in columns if column[5] == 1])
                 break
     conn.close()
     return primary_keys

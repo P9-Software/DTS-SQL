@@ -22,15 +22,15 @@ def schema_linking_prompt_token_counter(
     question, database_schema, correct_tables, correct_columns, tokenizer
 ):
     user_message = f"""Given the following SQL tables, your job is to determine the column names and table that the question is referring to.
-{database_schema}
-###
-Question: {question}
-"""
+        {database_schema}
+        ###
+        Question: {question}
+    """
     assitant_message = f"""
-Columns: {correct_columns}
-Tables: {correct_tables}
- ;
-"""
+        Columns: {correct_columns}
+        Tables: {correct_tables}
+        ;
+    """
     messages = [
         {"role": "user", "content": user_message},
         {"role": "assistant", "content": assitant_message},

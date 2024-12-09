@@ -53,7 +53,8 @@ def format_and_lowercase_sql_query(query):
             query = query.replace(token.text, token.text.upper())
 
     def format_aggregation_functions(match):
-        function_name = match.group(1).upper()  # Aggregation function name in lowercase
+        # Aggregation function name in lowercase
+        function_name = match.group(1).upper()
         arguments = match.group(2)  # Arguments inside the parentheses
         return f"{function_name}({arguments})"
 

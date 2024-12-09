@@ -48,7 +48,7 @@ class EosListStoppingCriteriaSchema(StoppingCriteria):
         last_ids = input_ids[:,-len(self.eos_sequence):].tolist()
         return self.eos_sequence in last_ids
 
-def append_item(query,db_id, counter, output_dir):
+def append_item(query, db_id, counter, output_dir):
     try:
         with open(output_dir, 'r') as json_file:
             data_dict = json.load(json_file)

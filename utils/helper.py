@@ -1,5 +1,5 @@
 from fuzzywuzzy import process
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceInstructEmbeddings
 from sql_metadata import Parser
 from typing import Any, Tuple, List
 from dotenv import load_dotenv
@@ -41,20 +41,20 @@ def find_correct_tables_and_columns(
 def find_table_embedding(
     table_representations: list[str],
 ) -> list[list[float]]:
-    # embeddings = HuggingFaceEmbeddings()
-    embeddings = OpenAIEmbeddings()
+    embeddings = HuggingFaceInstructEmbeddings()
+    # embeddings = OpenAIEmbeddings()
     table_embeddings = embeddings.embed_documents(table_representations)
     return table_embeddings
 
 
 def rank_the_tables(
-    table_embedding: list[float],
+    query_embedding: list[float],
     tables: List[Tuple[str, list[float]]],
 ) -> list[str]:
     table_rankings = []
     for table_name, table_embedding in tables:
         table_rankings.append(
-            (table_name, cosine_similarity(table_embedding, table_embedding))
+            (table_name, cosine_similarity(query_embedding, table_embedding))
         )
     table_rankings.sort(key=lambda x: x[1], reverse=True)
     return [table_name for table_name, _ in table_rankings]
