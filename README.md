@@ -32,4 +32,50 @@ This repository hosts the code for the DTS-SQL paper, featuring state-of-the-art
 }
 
 
+### Dev.Json Format
+[
+  {
+    "db_id": "string",          // Unique identifier for the database
+    "SQL": "string",            // The SQL query corresponding to the question
+    "question": "string",       // Natural language question
+    "evidence": "string"        // (Optional) Additional context or hint for the question
+  },
+  ...
+]
+
+### BASE_DATABASES_DIR
+- Path:
+  ./dev_databases/
+- Structure:
+  ./dev_databases/
+  └── {db_id}/
+      ├── {db_id}.sqlite           // SQLite database file
+      └── database_description/   // (Optional) Folder for table descriptions
+          ├── {table_name}.csv   // CSV file describing table columns and values
+- database_description
+  - Columns:
+  original_column_name: Name of the column in the database table
+  column_description: Description of the column
+  value_description: Description of possible values in the column
+
+
+### Format for finetuning_dataset_creator
+- train_others.json and train_spider.json
+  [
+    {
+      "db_id": "string",           // Database identifier
+      "question": "string",        // Natural language question
+      "query": "string"            // Corresponding SQL query
+    },
+    ...
+  ]
+- dev.json
+  [
+    {
+      "db_id": "string",                  // Database identifier
+      "SpiderSynQuestion": "string",     // Natural language question in Spider Syn format
+      "query": "string"                  // Corresponding SQL query
+    },
+    ...
+  ]
 

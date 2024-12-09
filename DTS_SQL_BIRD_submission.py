@@ -16,7 +16,7 @@ from accelerate.utils import release_memory
 
 
 BASE_DATASET_DIR = "dev.json"
-BASE_DABATASES_DIR =  "./dev_databases/"
+BASE_DATABASES_DIR =  "./dev_databases/"
 OUTPUT_DIR = "predict_dev.json"
 
 
@@ -145,7 +145,7 @@ def load_descriptions(db_path: str, table_name: str) -> list[str]:
     return columns_description
 
 
-def geenrate_sql(inputs, merged_model):
+def generate_sql(inputs, merged_model):
   output_tokens = merged_model.generate(inputs, max_new_tokens=300, do_sample=False, pad_token_id=tokenizer.eos_token_id, eos_token_id=tokenizer.eos_token_id, stopping_criteria = [EosListStoppingCriteriaSQL()])
   return tokenizer.decode(output_tokens[0][len(inputs[0]):], skip_special_tokens=True)
 
@@ -167,8 +167,8 @@ if __name__ == "__main__":
         question = row['question']
         if row['evidence'] != "" and row['evidence'] is not None:
             question += " Hint: " + row['evidence']
-        db_uri = f"{BASE_DABATASES_DIR}/{db_id}/{db_id}.sqlite"
-        db_path = f"{BASE_DABATASES_DIR}/{db_id}"
+        db_uri = f"{BASE_DATABASES_DIR}/{db_id}/{db_id}.sqlite"
+        db_path = f"{BASE_DATABASES_DIR}/{db_id}"
         table_names = get_all_table_names(db_uri)
         database_schema = ""
         for table_name in table_names:
@@ -176,10 +176,10 @@ if __name__ == "__main__":
             schema = get_table_schema_with_samples(db_uri, table_name, 0, columns_description)
             database_schema += schema + "\n"
         user_message = f"""Given the following SQL tables, your job is to determine the columns and tables that the question is referring to.
-{database_schema}
-####
-Question: {question}
-"""
+            {database_schema}
+            ####
+            Question: {question}
+        """
         messages = [
             {"role": "user", "content": user_message.strip()}
         ]
@@ -224,16 +224,16 @@ Question: {question}
         question = row['question']
         database_schema = row['database_schema']
         user_message = f"""Given the following SQL tables, your job is to generate the Sqlite SQL query given the user's question.
-Put your answer inside the ```sql and ``` tags.
-{database_schema}
-####
-Question: {question}
-"""
+            Put your answer inside the ```sql and ``` tags.
+            {database_schema}
+            ####
+            Question: {question}
+        """
         messages = [
             {"role": "user", "content": user_message.strip()}
         ]
         inputs = tokenizer.apply_chat_template(messages, return_tensors="pt", add_generation_prompt=True,tokenize = True).to(sql_model.device)
-        response = geenrate_sql(inputs, sql_model)
+        response = generate_sql(inputs, sql_model)
         if ";" in response:
             response = response.split(";")[0]
         if "```sql" in response:
