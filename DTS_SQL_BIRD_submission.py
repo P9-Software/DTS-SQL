@@ -204,9 +204,6 @@ def generate_question(db_id: str, query: str, question: str):
             columns_description = load_descriptions(db_id, table_name)
             database_schema = get_table_schema_with_samples(db_uri, table_name, 0, columns_description)
             database_schema += "\n"
-    
-    release_memory(schema_model)
-    del schema_model
 
     return({
         "question": question,
@@ -256,8 +253,10 @@ if __name__ == "__main__":
     schema_linking_tables = ""
     df = pd.read_json(BASE_DATASET_DIR)
     for index, row in tqdm(df.iterrows(), total=len(df), desc="Schema Linking"):
-        result, schema_linking_tables = (generate_question(row["db_id"], row["query"], row["question"]))
+        result, schema_linking_tables = (generate_question(row["db_id"], row["SQL"], row["question"]))
         results.append(result)
+    release_memory(schema_model)
+    del schema_model
     for index, row in tqdm(enumerate(results), total=len(results), desc="Generating SQL"):
         test_question(results, schema_linking_tables)
    
