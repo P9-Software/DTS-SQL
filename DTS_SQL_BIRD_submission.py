@@ -158,14 +158,16 @@ def print_tokens_with_ids(txt):
     token_ids = tokenizer.encode(txt, add_special_tokens=False)
     print(list(zip(tokens, token_ids)))
 
-def generate_question(db_id: str, query: str, question: str):
-    results = []
+def generate_question(question: dict):
+    db_id = question["db_id"]
+    query = question["SQL"]
+    question = question["question"]
     db_uri = f"{BASE_DATABASES_DIR}/{db_id}/{db_id}.sqlite"
     db_path = f"{BASE_DATABASES_DIR}/{db_id}" 
     table_names = get_all_table_names(db_uri)
     database_schema = ""
     for table_name in table_names:
-        columns_description = load_descriptions(db_id, table_name)
+        columns_description = load_descriptions(db_path, table_name)
         schema = get_table_schema_with_samples(db_uri, table_name, 0, columns_description)
         database_schema += schema + "\n"
         user_message = f"""Given the following SQL tables, your job is to determine the columns and tables that the question is referring to.
@@ -253,7 +255,7 @@ if __name__ == "__main__":
     schema_linking_tables = ""
     df = pd.read_json(BASE_DATASET_DIR)
     for index, row in tqdm(df.iterrows(), total=len(df), desc="Schema Linking"):
-        result, schema_linking_tables = (generate_question(row["db_id"], row["SQL"], row["question"]))
+        result, schema_linking_tables = (generate_question({"db_id": row["db_id"],"SQL": row["SQL"],"question": row["question"]}))
         results.append(result)
     release_memory(schema_model)
     del schema_model
