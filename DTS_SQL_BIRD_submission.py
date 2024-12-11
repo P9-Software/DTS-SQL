@@ -158,71 +158,70 @@ def print_tokens_with_ids(txt):
     token_ids = tokenizer.encode(txt, add_special_tokens=False)
     print(list(zip(tokens, token_ids)))
 
-if __name__ == "__main__":
+def generate_question(db_id: str, query: str, question: str):
     results = []
-    df = pd.read_json(BASE_DATASET_DIR)
-    for index, row in tqdm(df.iterrows(), total=len(df), desc="Schema Linking"):
-        db_id = row['db_id']
-        query = row['SQL']
-        question = row['question']
-        if row['evidence'] != "" and row['evidence'] is not None:
-            question += " Hint: " + row['evidence']
-        db_uri = f"{BASE_DATABASES_DIR}/{db_id}/{db_id}.sqlite"
-        db_path = f"{BASE_DATABASES_DIR}/{db_id}"
-        table_names = get_all_table_names(db_uri)
-        database_schema = ""
-        for table_name in table_names:
-            columns_description = load_descriptions(db_id, table_name)
-            schema = get_table_schema_with_samples(db_uri, table_name, 0, columns_description)
-            database_schema += schema + "\n"
+    db_uri = f"{BASE_DATABASES_DIR}/{db_id}/{db_id}.sqlite"
+    db_path = f"{BASE_DATABASES_DIR}/{db_id}" 
+    table_names = get_all_table_names(db_uri)
+    database_schema = ""
+    for table_name in table_names:
+        columns_description = load_descriptions(db_id, table_name)
+        schema = get_table_schema_with_samples(db_uri, table_name, 0, columns_description)
+        database_schema += schema + "\n"
         user_message = f"""Given the following SQL tables, your job is to determine the columns and tables that the question is referring to.
-            {database_schema}
-            ####
-            Question: {question}
+        {database_schema}
+        ####
+        Question: {question}
         """
-        messages = [
-            {"role": "user", "content": user_message.strip()}
-        ]
-        inputs = tokenizer.apply_chat_template(messages, return_tensors="pt", add_generation_prompt=True,tokenize = True).to(schema_model.device)
-        response = generate_schema(inputs, schema_model)
-        if "Tables: " in response:
-            response = response.split("Tables: ")[1]
-        if ";" in response:
-            response = response.split(";")[0]
-        schema_linking_tables = re.sub(r'\s+', ' ', response).strip()
-        print(f"Predicted schema: {schema_linking_tables}")
-        try:
-            print(f"Original schema: {Parser(query).tables}")
-        except Exception:
-            pass
-        schema_linking_tables = schema_linking_tables.split(", ")
+    messages = [
+        {"role": "user", "content": user_message.strip()}
+    ]
+    inputs = tokenizer.apply_chat_template(messages, return_tensors="pt", add_generation_prompt=True,tokenize = True).to(schema_model.device)
+    response = generate_schema(inputs, schema_model)
+
+    if "Tables: " in response:
+        response = response.split("Tables: ")[1]
+    if ";" in response:
+        response = response.split(";")[0]
+    schema_linking_tables = re.sub(r'\s+', ' ', response).strip()
+    print(f"Predicted schema: {schema_linking_tables}")
+    try:
+        print(f"Original schema: {Parser(query).tables}")
+    except Exception:
+        pass
+    schema_linking_tables = schema_linking_tables.split(", ")
+    database_schema = ""
+    try:
+        for table in schema_linking_tables:
+            table = table.replace("**", "").replace("--", "").replace("'","").strip()
+            database_schema += get_table_schema_with_samples(db_uri, table)
+            database_schema += "\n"
+    except Exception:
         database_schema = ""
-        try:
-            for table in schema_linking_tables:
-                table = table.replace("**", "").replace("--", "").replace("'","").strip()
-                database_schema += get_table_schema_with_samples(db_uri, table)
-                database_schema += "\n"
-        except Exception:
-            database_schema = ""
-            print(f"Table not found {schema_linking_tables}")
-            all_tables = get_all_table_names(db_uri)
-            for table in all_tables:
-                columns_description = load_descriptions(db_id, table_name)
-                database_schema = get_table_schema_with_samples(db_uri, table_name, 0, columns_description)
-                database_schema += "\n"
-        results.append({
-            "question": question,
-            "db_id": db_id,
-            "query": query,
-            "database_schema": database_schema,
-        })
+        print(f"Table not found {schema_linking_tables}")
+        all_tables = get_all_table_names(db_uri)
+        for table in all_tables:
+            columns_description = load_descriptions(db_id, table_name)
+            database_schema = get_table_schema_with_samples(db_uri, table_name, 0, columns_description)
+            database_schema += "\n"
+    
     release_memory(schema_model)
     del schema_model
-    for index, row in tqdm(enumerate(results), total=len(results), desc="Generating SQL"):
-        query = row['query']
-        db_id = row['db_id']
-        question = row['question']
-        database_schema = row['database_schema']
+
+    return({
+        "question": question,
+        "db_id": db_id,
+        "query": query,
+        "database_schema": database_schema,
+    }, schema_linking_tables)
+
+
+def test_question(questions: list, schema_linking_tables) -> list:
+    for idx, row in tqdm(enumerate(results), total=len(questions), desc="Generating SQL"):
+        query = row["query"]
+        db_id = row["db_id"]
+        question = row["question"]
+        database_schema = row["database_schema"]
         user_message = f"""Given the following SQL tables, your job is to generate the Sqlite SQL query given the user's question.
             Put your answer inside the ```sql and ``` tags.
             {database_schema}
@@ -243,4 +242,22 @@ if __name__ == "__main__":
             response = "SELECT * FROM " + schema_linking_tables[0]
         print(f"Predicted: {response}")
         print(f"Gold: {query}")
-        append_item(response, db_id, index, OUTPUT_DIR)
+        if len(questions) == 1:
+            return response
+        else:
+            append_item(response, db_id, index, OUTPUT_DIR)
+
+
+
+
+
+if __name__ == "__main__":
+    results = []
+    schema_linking_tables = ""
+    df = pd.read_json(BASE_DATASET_DIR)
+    for index, row in tqdm(df.iterrows(), total=len(df), desc="Schema Linking"):
+        result, schema_linking_tables = (generate_question(row["db_id"], row["query"], row["question"]))
+        results.append(result)
+    for index, row in tqdm(enumerate(results), total=len(results), desc="Generating SQL"):
+        test_question(results, schema_linking_tables)
+   
