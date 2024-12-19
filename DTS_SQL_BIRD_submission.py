@@ -24,11 +24,11 @@ class SQLSchemaGenerator:
         self.sql_generation_adapter_path = sql_generation_adapter_path
 
         self.schema_model = AutoModelForCausalLM.from_pretrained(
-            schema_linker_adapter_path, attn_implementation="flash_attention_2",
+            schema_linker_adapter_path, attn_implementation="eager",
             torch_dtype=torch.bfloat16, device_map="auto"
         )
         self.sql_model = AutoModelForCausalLM.from_pretrained(
-            sql_generation_adapter_path, attn_implementation="flash_attention_2",
+            sql_generation_adapter_path, attn_implementation="eager",
             torch_dtype=torch.bfloat16, device_map="auto"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(schema_linker_adapter_path)
@@ -68,10 +68,19 @@ class SQLSchemaGenerator:
 
     @staticmethod
     def _get_all_table_names(db_uri):
+        import sys
+        if not os.path.exists(db_uri):
+            print(f"Error: The database file at {db_uri} does not exist.")
+            return []
+        
         conn = sqlite3.connect(db_uri)
+        print(sys.path)
+
         cursor = conn.cursor()
+        print(f"in get all table names,{db_uri}")
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         table_names = cursor.fetchall()
+        print(table_names)
         conn.close()
         return [table_name[0] for table_name in table_names]
 
@@ -163,6 +172,7 @@ class SQLSchemaGenerator:
         db_uri = f"{self.BASE_DATABASES_DIR}/{db_id}/{db_id}.sqlite"
         db_path = f"{self.BASE_DATABASES_DIR}/{db_id}"
         table_names = self._get_all_table_names(db_uri)
+        print(table_names)
         database_schema = ""
 
         for table_name in table_names:
@@ -228,6 +238,8 @@ class SQLSchemaGenerator:
                 response = response.split(";")[0]
             if "```sql" in response:
                 response = response.split("```sql")[1]
+                response = response.split("```")[0]
+
             response = re.sub(r'\s+', ' ', response).strip()
 
             if "SELECT" not in response:
